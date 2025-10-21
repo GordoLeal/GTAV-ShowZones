@@ -1,5 +1,0 @@
-﻿LINK : warning LNK4075: ignoring '/INCREMENTAL' due to '/LTCG' specification
-  Generating code
-  Not all modules are compiled with -Gy (function comdat), build without incremental LTCG.
-  Finished generating code
-  ShowZones.vcxproj -> C:\Users\pedro\OneDrive\Área de Trabalho\GTA Modding\LegitimateBusiness\ShowZones\compiled\ShowZones.asi
