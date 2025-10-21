@@ -1,0 +1,14 @@
+﻿  script.cpp
+C:\Users\pedro\OneDrive\Área de Trabalho\GTA Modding\LegitimateBusiness\ShowZones\script.cpp(815,47): warning C4305: 'argument': truncation from 'double' to 'float'
+C:\Users\pedro\OneDrive\Área de Trabalho\GTA Modding\LegitimateBusiness\ShowZones\script.cpp(815,39): warning C4305: 'argument': truncation from 'double' to 'float'
+C:\Users\pedro\OneDrive\Área de Trabalho\GTA Modding\LegitimateBusiness\ShowZones\script.cpp(815,30): warning C4305: 'argument': truncation from 'double' to 'float'
+C:\Users\pedro\OneDrive\Área de Trabalho\GTA Modding\LegitimateBusiness\ShowZones\script.cpp(1082,52): warning C4305: 'argument': truncation from 'double' to 'float'
+C:\Users\pedro\OneDrive\Área de Trabalho\GTA Modding\LegitimateBusiness\ShowZones\script.cpp(1082,41): warning C4305: 'argument': truncation from 'double' to 'float'
+C:\Users\pedro\OneDrive\Área de Trabalho\GTA Modding\LegitimateBusiness\ShowZones\script.cpp(1082,30): warning C4305: 'argument': truncation from 'double' to 'float'
+C:\Users\pedro\OneDrive\Área de Trabalho\GTA Modding\LegitimateBusiness\ShowZones\script.cpp(1116,23): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+  Generating code
+  18 of 116 functions (15.5%) were compiled, the rest were copied from previous compilation.
+    13 functions were new in current compilation
+    38 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  ShowZones.vcxproj -> C:\Users\pedro\OneDrive\Área de Trabalho\GTA Modding\LegitimateBusiness\ShowZones\Compiled\ShowZones.asi
