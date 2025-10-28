@@ -5,10 +5,11 @@
 #include <iostream>
 #include <string>
 #include <debugapi.h>
-
+#include <vector>
 // REMINDER: SET THIS BACK TO TRUE AFTER IS DONE, OTHERWISE YOU GONNA HAVE BAD STUFF HAPPENING!!!
 static void SET_BACKFACECULLING(BOOL p0) { invoke<Void>(0x23BA6B0C2AD7B0D3, p0); } // 0x23BA6B0C2AD7B0D3 0xC44C2F44
 static int GET_WAYPOINT_BLIP_ENUM_ID() { return invoke<int>(0x186E5D252FA50E7D); } // 0x186E5D252FA50E7D 0xB9827942
+static void DRAW_POLY(float x1, float y1, float z1, float x2, float y2, float z2, float x3, float y3, float z3, int r, int g, int b, int alpha) { invoke<Void>(0xAC26716048436851, x1, y1, z1, x2, y2, z2, x3, y3, z3, r, g, b, alpha); } // 0xAC26716048436851 0xABD19253
 
 struct GameColor
 {
@@ -31,7 +32,17 @@ struct Vec3
 		return out;
 	}
 	Vec3(Vector3 a) : x(a.x), y(a.y), z(a.z) {}
+	Vec3 operator+(const Vec3& other) const
+	{
+		return Vec3(x + other.x, y + other.y, z + other.z);
+	}
+	Vec3 operator-(const Vec3& other) const
+	{
+		return Vec3(x - other.x, y - other.y, z - other.z);
+	}
 };
+
+
 
 static void RemoveUselessBlip(Blip blip) {
 	if (UI::DOES_BLIP_EXIST(blip)) {
@@ -44,10 +55,13 @@ static bool IsScriptActive(char* script)
 	return SCRIPT::_GET_NUMBER_OF_INSTANCES_OF_STREAMED_SCRIPT(GAMEPLAY::GET_HASH_KEY(script)) > 0;
 }
 
-static void DrawFace(Vec3 p1, Vec3 p2, Vec3 p3, Vec3 p4, GameColor color)
+// A __ B
+// |    |
+// D __ C
+static void DrawFace(Vec3 A, Vec3 B, Vec3 C, Vec3 D, GameColor color)
 {
-	GRAPHICS::DRAW_POLY(p3.x, p3.y, p3.z, p2.x, p2.y, p2.z, p1.x, p1.y, p1.z, color.r, color.g, color.b, color.a);
-	GRAPHICS::DRAW_POLY(p1.x, p1.y, p1.z, p4.x, p4.y, p4.z, p3.x, p3.y, p3.z, color.r, color.g, color.b, color.a);
+	GRAPHICS::DRAW_POLY(C.x, C.y, C.z, B.x, B.y, B.z, A.x, A.y, A.z, color.r, color.g, color.b, color.a);
+	GRAPHICS::DRAW_POLY(A.x, A.y, A.z, D.x, D.y, D.z, C.x, C.y, C.z, color.r, color.g, color.b, color.a);
 }
 
 static void DrawAngledZone(Vec3 a, Vec3 b, float dis, bool bothSides = true)
@@ -310,7 +324,6 @@ static void DrawBasicTextWithColor(char* text, float x, float y, float scaleY, G
 	UI::_DRAW_TEXT(x, y);
 }
 
-
 static void QuickDrawAngledZone(float x1, float y1, float z1, float x2, float y2, float z2, float dis)
 {
 	DrawAngledZone(Vec3(x1, y1, z1), Vec3(x2, y2, z2), dis, true);
@@ -478,18 +491,159 @@ static void DrawScuffedSquareCheck(Vec3 pos, Vec3 size, bool drawBothSides = tru
 	//}
 
 }
+
 static void DrawScuffedSquareCheck(Vec3 pos, float fixedSize, bool drawBothSides = true)
 {
 	DrawScuffedSquareCheck(pos, Vec3(fixedSize, fixedSize, fixedSize), drawBothSides);
 }
 
-/*CONST_FLOAT LOCATE_SIZE_ANY_MEANS		6.0
-	CONST_FLOAT LOCATE_SIZE_ON_FOOT_ONLY	4.0
-	CONST_FLOAT	LOCATE_SIZE_HEIGHT			2.0
-	CONST_FLOAT LOCATE_SIZE_MISSION_TRIGGER	2.75*/
+static float degtorad(float deg)
+{
+	return deg * (3.14f / 180.0f);
+}
+//static float radtodeg(float rad)
+//{
+//	return rad * (180.0f / 3.14f);
+//}
+static void DrawInfCylinder(Vec3 pos, float range, GameColor color = GameColor(0, 0, 255), bool drawBothSides = true)
+{
+	float an = 45.0f;
+	std::vector<Vec3> dots;
+	dots.reserve(floor(an / 360.0f));
+	for (float i = 0.0f; i < 360.0f; i += 45.0f) {
+		Vec3 p = Vec3(pos.x + (range * cos(degtorad(i))), (pos.y + range * sin(degtorad(i))), pos.z);
+		dots.push_back(p);
+		//DrawScuffedSquareCheck(p, 0.1f);
+	}
 
-	// VECTOR g_vAnyMeansLocate	= << LOCATE_SIZE_ANY_MEANS (6.0), LOCATE_SIZE_ANY_MEANS (6.0), LOCATE_SIZE_HEIGHT (2.0) >>
-	// VECTOR g_vOnFootLocate = << LOCATE_SIZE_ON_FOOT_ONLY, LOCATE_SIZE_ON_FOOT_ONLY, LOCATE_SIZE_HEIGHT >>
+	if (drawBothSides)
+		SET_BACKFACECULLING(false);
+	for (int a = 1; a < dots.size(); a++)
+	{
+		Vec3 posA = dots[a];
+		posA.z = 2000;
+		Vec3 posB = dots[a - 1];
+		posB.z = 2000;
+		Vec3 posC = posB;
+		posC.z = -200;
+		Vec3 posD = posA;
+		posD.z = -200;
+		DrawFace(posA, posB, posC, posD, color);
+
+	}
+
+	Vec3 posA = dots[0];
+	posA.z = 2000;
+	Vec3 posB = dots[dots.size() - 1];
+	posB.z = 2000;
+	Vec3 posC = posB;
+	posC.z = -200;
+	Vec3 posD = posA;
+	posD.z = -200;
+	DrawFace(posA, posB, posC, posD, color);
+
+	if (drawBothSides)
+		SET_BACKFACECULLING(true);
+}
+
+static void DrawSemiDiamond(Vec3 pos, Vec3 range, GameColor color = GameColor(0, 0, 255), bool drawBothSides = true)
+{
+	float an = 45.0f;
+	// Dots
+	std::vector<Vec3> dots;
+	std::vector<Vec3> topdots;
+	std::vector<Vec3> bottomdots;
+	float r = floor(an / 360.0f);
+	dots.reserve(r);
+	topdots.reserve(r);
+	bottomdots.reserve(r);
+	float cT = cos(degtorad(an));
+	for (float i = 0.0f; i < 360.0f; i += an) {
+		float co = cos(degtorad(i));
+		float si = sin(degtorad(i));
+		dots.push_back(Vec3(pos.x + (range.x * co), (pos.y + range.x * si), pos.z));
+		topdots.push_back(Vec3(pos.x + ((range.x / 1.5f) * co), (pos.y + (range.x / 1.5f) * si), pos.z + (range.z / 1.5f)));
+		bottomdots.push_back(Vec3(pos.x + ((range.x / 1.5f) * co), (pos.y + (range.x / 1.5f) * si), pos.z - (range.z / 1.5f)));
+	}
+
+	//Drawing
+	if (drawBothSides)
+		SET_BACKFACECULLING(false);
+	Vec3 topSphere = pos + Vec3(0, 0, range.z);
+	Vec3 bottomSphere = pos - Vec3(0, 0, range.z);
+	//Top
+	for (int t = 1; t < dots.size(); t++)
+	{
+		Vec3 posA = topdots[t];
+		Vec3 posB = topdots[t - 1];
+
+		GRAPHICS::DRAW_LINE(posA.x, posA.y, posA.z, posB.x, posB.y, posB.z, color.r, color.g, color.b, color.a);
+		GRAPHICS::DRAW_LINE(posA.x, posA.y, posA.z, topSphere.x, topSphere.y, topSphere.z, color.r, color.g, color.b, color.a);
+		GRAPHICS::DRAW_LINE(posB.x, posB.y, posB.z, topSphere.x, topSphere.y, topSphere.z, color.r, color.g, color.b, color.a);
+	}
+	Vec3 tA = topdots[0];
+	Vec3 tB = topdots[dots.size() - 1];
+	GRAPHICS::DRAW_LINE(tA.x, tA.y, tA.z, tB.x, tB.y, tB.z, color.r, color.g, color.b, color.a);
+
+	//Bottom
+	for (int t = 1; t < dots.size(); t++)
+	{
+		Vec3 posA = bottomdots[t];
+		Vec3 posB = bottomdots[t - 1];
+
+		GRAPHICS::DRAW_LINE(posA.x, posA.y, posA.z, posB.x, posB.y, posB.z, color.r, color.g, color.b, color.a);
+		GRAPHICS::DRAW_LINE(posA.x, posA.y, posA.z, bottomSphere.x, bottomSphere.y, bottomSphere.z, color.r, color.g, color.b, color.a);
+		GRAPHICS::DRAW_LINE(posB.x, posB.y, posB.z, bottomSphere.x, bottomSphere.y, bottomSphere.z, color.r, color.g, color.b, color.a);
+	}
+	Vec3 bA = bottomdots[0];
+	Vec3 bB = bottomdots[dots.size() - 1];
+	GRAPHICS::DRAW_LINE(bA.x, bA.y, bA.z, bB.x, bB.y, bB.z, color.r, color.g, color.b, color.a);
+
+	// Top-Middle
+	for (int a = 1; a < dots.size(); a++)
+	{
+		Vec3 posA = dots[a];
+		Vec3 posB = dots[a - 1];
+		Vec3 posC = topdots[a - 1];
+		Vec3 posD = topdots[a];
+		//DrawFace(posA, posB, posC, posD, color);
+		GRAPHICS::DRAW_LINE(posA.x, posA.y, posA.z, posB.x, posB.y, posB.z, color.r, color.g, color.b, color.a);
+		GRAPHICS::DRAW_LINE(posB.x, posB.y, posB.z, posC.x, posC.y, posC.z, color.r, color.g, color.b, color.a);
+		GRAPHICS::DRAW_LINE(posC.x, posC.y, posC.z, posD.x, posD.y, posD.z, color.r, color.g, color.b, color.a);
+		GRAPHICS::DRAW_LINE(posD.x, posD.y, posD.z, posA.x, posA.y, posA.z, color.r, color.g, color.b, color.a);
+	}
+
+	// Bottom-Middle
+	for (int a = 1; a < dots.size(); a++)
+	{
+		Vec3 posA = dots[a];
+		Vec3 posB = dots[a - 1];
+		Vec3 posC = bottomdots[a - 1];
+		Vec3 posD = bottomdots[a];
+		//DrawFace(posA, posB, posC, posD, color);
+		GRAPHICS::DRAW_LINE(posA.x, posA.y, posA.z, posB.x, posB.y, posB.z, color.r, color.g, color.b, color.a);
+		GRAPHICS::DRAW_LINE(posB.x, posB.y, posB.z, posC.x, posC.y, posC.z, color.r, color.g, color.b, color.a);
+		GRAPHICS::DRAW_LINE(posC.x, posC.y, posC.z, posD.x, posD.y, posD.z, color.r, color.g, color.b, color.a);
+		GRAPHICS::DRAW_LINE(posD.x, posD.y, posD.z, posA.x, posA.y, posA.z, color.r, color.g, color.b, color.a);
+	}
+
+	Vec3 mA = dots[0];
+	Vec3 mB = dots[dots.size() - 1];
+	GRAPHICS::DRAW_LINE(mA.x, mA.y, mA.z, mB.x, mB.y, mB.z, color.r, color.g, color.b, color.a);
+
+	if (drawBothSides)
+		SET_BACKFACECULLING(true);
+}
+
+/*
+CONST_FLOAT LOCATE_SIZE_ANY_MEANS		6.0
+CONST_FLOAT LOCATE_SIZE_ON_FOOT_ONLY	4.0
+CONST_FLOAT	LOCATE_SIZE_HEIGHT			2.0
+CONST_FLOAT LOCATE_SIZE_MISSION_TRIGGER	2.75
+*/
+
+// VECTOR g_vAnyMeansLocate	= << LOCATE_SIZE_ANY_MEANS (6.0), LOCATE_SIZE_ANY_MEANS (6.0), LOCATE_SIZE_HEIGHT (2.0) >>
+// VECTOR g_vOnFootLocate = << LOCATE_SIZE_ON_FOOT_ONLY, LOCATE_SIZE_ON_FOOT_ONLY, LOCATE_SIZE_HEIGHT >>
 
 static void DoPedCheckUpdate(Ped& ped, char* modelName) {
 	if (ped == 0)
@@ -565,16 +719,16 @@ static void Script_Prologue1()
 	DrawAngledZone(Vec3(5320.420410f, -5182.820800f, 82.518669f), Vec3(5315.878418f, -5182.866699f, 85.518669f), 3.5f, true);
 
 	// Trevor mask - Just for testing the mod
-	//DrawScuffedSquareCheck(Vec3(5332.167480f, -5185.253906f, 83.80938f), Vec3(0.5f,0.5f, 2.0f),true);
-	//DrawScuffedSquareCheck(Vec3(5332.145020f, -5191.842773f, 83.773270f), Vec3(0.5f, 0.5f, 2.0f),true);
-	//DrawScuffedSquareCheck(Vec3(5326.206055f, -5185.222168f, 83.793671f), Vec3(0.5f, 0.5f, 2.0f),true);
-	//DrawScuffedSquareCheck(Vec3(5326.216797f, -5191.865234f, 83.776054f), Vec3(0.5f, 0.5f, 2.0f),true);
-	//DrawScuffedSquareCheck(Vec3(5332.157227f, -5178.680176f, 83.872810f), Vec3(0.5f, 0.5f, 2.0f),true);
-	//DrawScuffedSquareCheck(Vec3(5332.795898f, -5195.612305f, 83.99975f), Vec3(0.5f, 0.75f, 2.0f),true);
-	//DrawScuffedSquareCheck(Vec3(5336.999023f, -5178.898926f, 83.838768f), Vec3(0.75f, 2.25f, 2.0f),true);
+	DrawScuffedSquareCheck(Vec3(5332.167480f, -5185.253906f, 83.80938f), Vec3(0.5f, 0.5f, 2.0f), true);
+	DrawScuffedSquareCheck(Vec3(5332.145020f, -5191.842773f, 83.773270f), Vec3(0.5f, 0.5f, 2.0f), true);
+	DrawScuffedSquareCheck(Vec3(5326.206055f, -5185.222168f, 83.793671f), Vec3(0.5f, 0.5f, 2.0f), true);
+	DrawScuffedSquareCheck(Vec3(5326.216797f, -5191.865234f, 83.776054f), Vec3(0.5f, 0.5f, 2.0f), true);
+	DrawScuffedSquareCheck(Vec3(5332.157227f, -5178.680176f, 83.872810f), Vec3(0.5f, 0.5f, 2.0f), true);
+	DrawScuffedSquareCheck(Vec3(5332.795898f, -5195.612305f, 83.99975f), Vec3(0.5f, 0.75f, 2.0f), true);
+	DrawScuffedSquareCheck(Vec3(5336.999023f, -5178.898926f, 83.838768f), Vec3(0.75f, 2.25f, 2.0f), true);
 
 	// second wave cops car spawn trigger
-	DrawAngledZone(Vec3(5324.5811f, -5173.1362f, 87.0081f), Vec3(5334.1455f, -5195.7168f, 80.3420f), 10.0f, true);
+	//DrawAngledZone(Vec3(5324.5811f, -5173.1362f, 87.0081f), Vec3(5334.1455f, -5195.7168f, 80.3420f), 10.0f, true);
 
 	// Instafail triggers
 	DrawScuffedSquareCheck(Vec3(5301.347168f, -5180.395020f, 84.018921f), Vec3(4.0f, 3.0f, 1.5f), true);
@@ -648,12 +802,17 @@ static void Script_Armenian3() {
 	// Line 9084 in Armenian3.sch
 	// Overcomplicated check. not doing it.
 }
+Ped fr0_Dped = 0;
 static void Script_Franklin0() {
+
+	DoPedCheckUpdate(fr0_Dped, (char*)"IG_BALLASOG");
 	//IS_ENTITY_AT_COORD(PLAYER_PED_ID(), GET_HOOD_VECTOR(HVEC_BAD_GUY_HANGOUT), << 5, 5, LOCATE_SIZE_HEIGHT >> , TRUE)
 	// //<<363.74927, 323.37021, 102.71001>>
 
 	// IF IS_ENTITY_AT_ENTITY(PLAYER_PED_ID(), runnerChaseProperties.ped, <<7,7,7>>)
-	// voltar depois com a opção de pegar a area do ped.
+	if (PED::IS_PED_IN_ANY_VEHICLE(fr0_Dped, false)) {
+		DrawSemiDiamond(ENTITY::GET_ENTITY_COORDS(fr0_Dped,true),Vec3(7.0f,7.0f,7.0f),GameColor(0,0,0));
+	}
 
 	//IS_ENTITY_IN_AREA(chopPed, << 526.3, -685.8, -20 >> , << 534.8, -665.1, 100 >> , FALSE, FALSE)
 	//Chop train sniffing
@@ -690,8 +849,8 @@ static void Script_Family1()
 {
 	// =-=-=- Drive to location where the boat is
 	//vMissionLocation = << -2151.2722, -268.0492, 12.8775 >>
-	DrawAngledZone(Vec3(-2118.952637f, -224.515121f, 13.085728f), Vec3(-2150.723145f, -279.301636f, 24.510395f), 53.5f, false);
-	DrawAngledZone(Vec3(-2206.664307f, -368.100800f, 10.999576f), Vec3(-2370.630127f, -279.892090f, 16.897869f), 39.75f, false);
+	//DrawAngledZone(Vec3(-2118.952637f, -224.515121f, 13.085728f), Vec3(-2150.723145f, -279.301636f, 24.510395f), 53.5f, false);
+	//DrawAngledZone(Vec3(-2206.664307f, -368.100800f, 10.999576f), Vec3(-2370.630127f, -279.892090f, 16.897869f), 39.75f, false);
 	//DrawScuffedSquareCheck(Vec3(-2151.2722f, -268.0492f, 12.8775f), Vec3(130.0f, 130.0f, 30.0f), false);
 
 	//edge cases test
@@ -699,10 +858,10 @@ static void Script_Family1()
 	//OR IS_ENTITY_IN_ANGLED_AREA(PLAYER_PED_ID(), << -1928.2, -425.3, 27.5 >> , << -2063.9, -634.6, 0.04 >> , 10.0) AND IS_SPHERE_VISIBLE(GET_ENTITY_COORDS(truckYachtPackerTrailer), 7.0) //From freeway onramp to beach
 	//OR IS_ENTITY_IN_ANGLED_AREA(PLAYER_PED_ID(), << -2443.9, -248.3, 15.0 >> , << -2420.8, -226.7, 20.04 >> , 40.0) AND IS_SPHERE_VISIBLE(GET_ENTITY_COORDS(truckYachtPackerTrailer), 7.0) //From freeway going the same direction as the yacht (in case player goes over the mountains and attempts to flank the yacht)
 	//OR IS_ENTITY_IN_ANGLED_AREA(PLAYER_PED_ID(), << -2222.1, -225.3, 90.0 >> , << -2430.8, -140.7, 10.04 >> , 10.0) AND IS_SPHERE_VISIBLE((GET_ENTITY_COORDS(truckYachtPackerTrailer) + << 0.0, 0.0, -8.0 >> ), 7.0) //Mountain ridge overlooking freeway
-	//DrawAngledZone(Vec3(-2036.1f, -356.0f, 50.3f), Vec3(-2035.1f, -382.8f, 42.7f), 30.0f, false);
-	//DrawAngledZone(Vec3(-1928.2f, -425.3f, 27.5f), Vec3(-2063.9f, -634.6f, 0.04f), 10.0f, false);
-	//DrawAngledZone(Vec3(-2443.9f, -248.3f, 15.0f), Vec3(-2420.8f, -226.7f, 20.04f), 40.0f, false);
-	//DrawAngledZone(Vec3(-2222.1f, -225.3f, 90.0f), Vec3(-2430.8f, -140.7f, 10.04f), 10.0f, false);
+	DrawAngledZone(Vec3(-2036.1f, -356.0f, 50.3f), Vec3(-2035.1f, -382.8f, 42.7f), 30.0f, false);
+	DrawAngledZone(Vec3(-1928.2f, -425.3f, 27.5f), Vec3(-2063.9f, -634.6f, 0.04f), 10.0f, false);
+	DrawAngledZone(Vec3(-2443.9f, -248.3f, 15.0f), Vec3(-2420.8f, -226.7f, 20.04f), 40.0f, false);
+	DrawAngledZone(Vec3(-2222.1f, -225.3f, 90.0f), Vec3(-2430.8f, -140.7f, 10.04f), 10.0f, false);
 
 	/*DrawBasicText((char*)"Show Triggers", 0.5f, 0.95f, 0.4f);*/
 	//from SSA
@@ -1095,8 +1254,9 @@ static void Script_docks_setup()
 	//Crates deposit area
 	DrawAngledZone(Vec3(-92.523666f, -2461.800049f, 8.267201f), Vec3(-103.638123f, -2453.989258f, 4.520514f), 14.75f, true);
 	//Not park zone
-	//<<-1157.126465,-1520.959229,11.133599>> <<5.000000,5.500000,4.000000>>)
-	//DrawScuffedSquareCheck(Vec3(-1157.126465f, -1520.959229f, 11.133599f), Vec3(5.0f, 5.0f, 5.0f));
+	//Store_Planning_Loc_Data(PLN_TREV_CITY, <<-1157.0675,-1524.0396,9.6346>>,<<-1156.341,-1525.126,11.275>>,215.00,"rm_Lounge")
+	//heist_planning_board.sch -> CLEAR_AREA(sPlanningBoard.vPosition, 5.0, TRUE, TRUE)
+	DrawInfCylinder(Vec3(-1156.341, -1525.126, 11.275f), 5.0f, GameColor(255, 0, 0, 30), true);
 
 }
 static void Script_carsteal1()
@@ -1268,7 +1428,7 @@ static void Script_Michael1() {
 
 }
 static void Script_Michael3() {
-	// Get to steve
+	// Get to dave
 	DrawAngledZone(Vec3(-2150.920898f, 221.220291f, 183.401871f), Vec3(-2161.751709f, 245.579254f, 186.601868f), 4.0f, true);
 	DrawAngledZone(Vec3(-2156.448975f, 238.033142f, 183.401871f), Vec3(-2157.896973f, 246.830170f, 186.601868f), 4.2f, true);
 	DrawAngledZone(Vec3(-2155.382080f, 235.883850f, 183.401871f), Vec3(-2149.944092f, 226.999344f, 186.601868f), 4.2f, true);
@@ -1283,81 +1443,89 @@ static void Script_Michael3() {
 	DrawAngledZone(Vec3(-1442.794312f, -381.582275f, 37.320213f), Vec3(-1470.929932f, -363.552002f, 42.366222f), 41.0f, true);
 
 }
+
+#ifdef _DEBUG
+static void TestStuff()
+{
+
+}
+#endif // DEBUG
+
 // =-=-=-=-=-=-=-=-=-=--= UPDATE =-=-=-=-=-=-=-=-=-=-
 
-////Test
-//Vector3 v1;
-//Vector3 v2;
-ULONGLONG timerForText =0;
+ULONGLONG timerForText = 0;
 ULONGLONG maxTimerForText = 1000;
 bool ShowZones = false;
 void Update()
 {
-	//if (IsKeyJustUp(VK_NUMPAD0))
-	//{
-	//	// search for marker blip
-	//	int blipIterator = UI::_GET_BLIP_INFO_ID_ITERATOR();
-	//	for (Blip i = UI::GET_FIRST_BLIP_INFO_ID(blipIterator); UI::DOES_BLIP_EXIST(i) != 0; i = UI::GET_NEXT_BLIP_INFO_ID(blipIterator))
-	//	{
-	//		if (UI::GET_BLIP_INFO_ID_TYPE(i) == 4)
-	//		{
-	//			Vec3 c = UI::GET_BLIP_INFO_ID_COORD(i);
-	//			int e = PLAYER::PLAYER_PED_ID();
-	//			if (PED::IS_PED_IN_ANY_VEHICLE(e, false)) {
-	//				e = PED::GET_VEHICLE_PED_IS_IN(e, false);
-	//			}
+#ifdef _DEBUG
+	if (IsKeyJustUp(VK_NUMPAD0))
+	{
+		// search for marker blip
+		int blipIterator = UI::_GET_BLIP_INFO_ID_ITERATOR();
+		for (Blip i = UI::GET_FIRST_BLIP_INFO_ID(blipIterator); UI::DOES_BLIP_EXIST(i) != 0; i = UI::GET_NEXT_BLIP_INFO_ID(blipIterator))
+		{
+			if (UI::GET_BLIP_INFO_ID_TYPE(i) == 4)
+			{
+				Vec3 c = UI::GET_BLIP_INFO_ID_COORD(i);
+				int e = PLAYER::PLAYER_PED_ID();
+				if (PED::IS_PED_IN_ANY_VEHICLE(e, false)) {
+					e = PED::GET_VEHICLE_PED_IS_IN(e, false);
+				}
 
-	//			ENTITY::SET_ENTITY_COORDS(e, c.x, c.y, 0, 0, 0, 0, 0);
-	//			WAIT(100);
-	//			//ground test
-	//			float a;
-	//			bool found = false;
-	//			for (int i = 0; i < 5000; i += 100)
-	//			{
-	//				WAIT(100);
-	//				if (GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(c.x, c.y, i, &a, true))
-	//				{
-	//					found = true;
-	//					break;
-	//				}
-	//				if (i == 150) {
-	//					ENTITY::SET_ENTITY_COORDS(e, c.x, c.y, 150, 0, 0, 0, 0);
-	//					WAIT(100);
-	//				}
-	//				if (i == 200) {
-	//					ENTITY::SET_ENTITY_COORDS(e, c.x, c.y, 200, 0, 0, 0, 0);
-	//					WAIT(100);
-	//				}
-	//				if (i == 250) {
-	//					ENTITY::SET_ENTITY_COORDS(e, c.x, c.y, 250, 0, 0, 0, 0);
-	//					WAIT(100);
-	//				}
-	//				if (i == 500) {
-	//					ENTITY::SET_ENTITY_COORDS(e, c.x, c.y, 500, 0, 0, 0, 0);
-	//					WAIT(100);
-	//				}
-	//				if (i == 800) {
-	//					ENTITY::SET_ENTITY_COORDS(e, c.x, c.y, 800, 0, 0, 0, 0);
-	//					WAIT(100);
-	//				}
-	//				if (i == 1000) {
-	//					ENTITY::SET_ENTITY_COORDS(e, c.x, c.y, 1000, 0, 0, 0, 0);
-	//					WAIT(100);
-	//				}
-	//				if (i == 1500) {
-	//					ENTITY::SET_ENTITY_COORDS(e, c.x, c.y, 1500, 0, 0, 0, 0);
-	//					WAIT(100);
-	//				}
-	//			}
-	//			//if didn't find it, fuck it, let the game deal with it.
-	//			a = found ? a : -199;
-	//			ENTITY::SET_ENTITY_COORDS(e, c.x, c.y, a, 0, 0, 0, 0);
-	//			break;
-	//		}
-	//	}
-	//}
+				ENTITY::SET_ENTITY_COORDS(e, c.x, c.y, 0, 0, 0, 0, 0);
+				WAIT(100);
+				//ground test
+				float a;
+				bool found = false;
+				for (int i = 0; i < 5000; i += 100)
+				{
+					WAIT(100);
+					if (GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(c.x, c.y, i, &a, true))
+					{
+						found = true;
+						break;
+					}
+					if (i == 150) {
+						ENTITY::SET_ENTITY_COORDS(e, c.x, c.y, 150, 0, 0, 0, 0);
+						WAIT(100);
+					}
+					if (i == 200) {
+						ENTITY::SET_ENTITY_COORDS(e, c.x, c.y, 200, 0, 0, 0, 0);
+						WAIT(100);
+					}
+					if (i == 250) {
+						ENTITY::SET_ENTITY_COORDS(e, c.x, c.y, 250, 0, 0, 0, 0);
+						WAIT(100);
+					}
+					if (i == 500) {
+						ENTITY::SET_ENTITY_COORDS(e, c.x, c.y, 500, 0, 0, 0, 0);
+						WAIT(100);
+					}
+					if (i == 800) {
+						ENTITY::SET_ENTITY_COORDS(e, c.x, c.y, 800, 0, 0, 0, 0);
+						WAIT(100);
+					}
+					if (i == 1000) {
+						ENTITY::SET_ENTITY_COORDS(e, c.x, c.y, 1000, 0, 0, 0, 0);
+						WAIT(100);
+					}
+					if (i == 1500) {
+						ENTITY::SET_ENTITY_COORDS(e, c.x, c.y, 1500, 0, 0, 0, 0);
+						WAIT(100);
+					}
+				}
+				//if didn't find it, fuck it, let the game deal with it.
+				a = found ? a : -199;
+				ENTITY::SET_ENTITY_COORDS(e, c.x, c.y, a, 0, 0, 0, 0);
+				break;
+			}
+		}
+	}
+	TestStuff();
 
-	if (CONTROLS::IS_CONTROL_JUST_PRESSED(2,eControl::ControlFrontendDelete))
+#endif
+	if (CONTROLS::IS_CONTROL_JUST_PRESSED(2, eControl::ControlFrontendDelete))
 	{
 		ShowZones = !ShowZones;
 		timerForText = GetTickCount64();
@@ -1371,13 +1539,24 @@ void Update()
 			DrawBasicText((char*)"ShowZones Disabled", 0.45f, 0.96f, 0.5f);
 		}
 	}
-	
+
 	//DrawBox(Vec3(v1), Vec3(v2), GameColor(0, 255, 255, 255), true);
 	//DrawScuffedSquareCheck(Vec3(-1156.341f, -1525.126f, 11.275f), Vec3(0.1f, 0.1f, 5.0f));
 
 	// =-=-=-=-=-=-=-=-=-=-=-=-= MISSION SCRIPTS =-=-=-=-=-=-=-=-=-=
 	if (ShowZones)
 	{
+		Vec3 playerPos = ENTITY::GET_ENTITY_COORDS(PLAYER::PLAYER_PED_ID(), true);
+		if (PED::IS_PED_IN_ANY_VEHICLE(PLAYER::PLAYER_PED_ID(), true)) {
+			DrawScuffedSquareCheck(playerPos, Vec3(0.001f, 0.001f, 1.5f));
+		}
+		else {
+			DrawScuffedSquareCheck(playerPos, Vec3(0.001f, 0.001f, 1.0f));
+
+		}
+		//DrawSemiDiamond(playerPos, Vec3(2.0f, 2.0f, 2.0f), GameColor(0, 255, 0, 255));
+
+		//Scripts
 
 		if (IsScriptActive((char*)"Prologue1"))		Script_Prologue1();
 		// Simeon / Armenian
